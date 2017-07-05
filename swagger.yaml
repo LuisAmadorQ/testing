@@ -1,0 +1,281 @@
+swagger: '2.0'
+info:
+  version: "0.0.2 "
+  title: Availability To Promise API
+  description: API for obtaining realtime Product Inventory Details for L.L.Bean products
+  termsOfService: TBD
+  contact:
+    name: Available to Promise Service
+    email: atp-service@llbean.com
+    url: http://www.llbean.com
+  license:
+    name: MIT
+    url: http://github.com/gruntjs/grunt/blob/master/LICENSE-MIT
+host: atpservice-development.gcp.llbean.com:8080
+basePath: /v1/inventory
+schemes:
+ - http
+consumes:
+ - application/json
+produces:
+ - application/json
+paths:
+  /item/{itemid}/summary:
+    get:
+      description: Get Item Inventory Summary for a ItemId
+      operationId: getInventorySummaryForItemId
+      parameters:
+      - name: itemid
+        in: path
+        description: Unique Id assigned to a Item with-in the Merchandise Heirarchy.
+        required: true
+        type: integer
+        format: int32
+      responses:
+        200:
+          description: Item Inventory found for requested ItemId
+          schema:
+            $ref: '#/definitions/ItemInventorySummary'
+        400:
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/Failure'
+        404:
+          description: No Item Inventory available for the requested Item
+          schema:
+            $ref: '#/definitions/Failure'
+        500:
+          description: Internal Resource Failure
+          schema:
+            $ref: '#/definitions/Failure'
+  /item:
+    put:
+      description: Upsert the inventory data for a list of inventory items
+      operationId: putInventoryForItems
+      parameters:
+        - name: inventoryItems
+          in: body
+          description: An array of ItemInventory objects
+          required: true
+          schema:
+            description: An object which conforms to the ItemInventories definition
+            type: object
+            #Uncomment when cloud endpoints Array bug is fixed $ref: '#/definitions/ItemInventories'
+      responses:
+        200:
+          description: All InventoryItems processed succesfully
+        400:
+          description: Bad Request.
+          schema:
+            $ref: '#/definitions/Failure'
+        500:
+          description: A internal error occured.  The request was not processed
+          schema:
+            $ref: '#/definitions/Failure'
+  /product/purchaseorder:
+    put:
+      description: Upsert Purchase Order records for products
+      operationId: putProductPurchaseOrders
+      parameters:
+        - name: purchaseOrders
+          in: body
+          description: An array of ProductPurchaseOrder objects
+          required: true
+          schema:
+            description: An object which conforms to the ProductPurchaseOrders definition
+            type: object
+            #Uncomment when cloud endpoints array bug is fixed $ref: '#/definitions/ProductPurchaseOrders'
+      responses:
+        200:
+          description: All InventoryItems processed succesfully
+        400:
+          description: Bad Request.
+          schema:
+            $ref: '#/definitions/Failure'
+        500:
+          description: A internal error occured.  The request was not processed
+          schema:
+            $ref: '#/definitions/Failure'
+definitions:
+  ItemInventories:
+    title: ItemInventories
+    description: An array of InventoryItem objects
+    type: array
+    items:
+      $ref: '#/definitions/ItemInventory'
+  ItemInventory:
+    description: A container for products associate with a given inventory item
+    required:
+      - itemId
+      - products
+    properties:
+      itemId:
+        type: integer
+        format: int64
+      products:
+        type: array
+        items:
+          $ref: '#/definitions/ProductInventory'
+  ProductInventory:
+    description: A container for all product level inventory information
+    required:
+      - productId
+      - fulfillmentType
+      - fulfillmentSite
+      - fulfillmentLocation
+      - onHold
+      - refreshTimestamp
+    properties:
+      productId:
+        description: The unique product identifier
+        type: string
+      fulfillmentType:
+        description: A master id for the type of site for this inventory record, ie. Warehouse (B), Retail (R), Direct ship (D)
+        type: string
+        enum:
+          - B
+          - R
+          - D
+      fulfillmentSite:
+        description: A master id for the physical site where a product is located
+        type: string
+      fulfillmentLocation:
+        description: A master id for a physical location within the site further identifying product location
+        type: string
+      availableQuantity:
+        description: The quantity available at the given fulfillment location
+        type: integer
+        format: int64
+      onHold:
+        description: A flag indicating this product can not be sold even if inventory is available
+        type: string
+        enum:
+          - Y
+          - N
+      refreshTimestamp:
+        description: A timestamp identifying when this inventory record was accurate.  Format number of milliseconds since 01-01-1970
+        type: integer
+        format: int64
+  ProductPurchaseOrders:
+    title: ProductPurchaseOrders
+    description: An array of ProductPurchaseOrder objects
+    type: array
+    items:
+      $ref: '#/definitions/ProductPurchaseOrder'
+  ProductPurchaseOrder:
+    description: A container for open purchase orders for a product
+    type: object
+    required:
+      - productId
+      - poLineItems
+    properties:
+      productId:
+        description: The unique product identifier
+        type: string
+      poLineItems:
+        type: array
+        items:
+          $ref: '#/definitions/POLineItem'
+  POLineItem:
+    description: Product level details for a purchase order record
+    required:
+      - poNumber
+      - fulfillmentSite
+      - fulfillmentLocation
+      - onOrderQuantity
+      - shipDate
+      - refreshTimestamp
+    properties:
+      poNumber:
+        description: The unique identifier for the purchase order this line item is for
+        type: string
+      fulfillmentSite:
+        description: A master id for the physical site where a product is located
+        type: string
+      fulfillmentLocation:
+        description: A master id for a physical location within the site further identifying product location
+        type: string
+      onOrderQuantity:
+        description: The quantity not yet allocated for this product on this PO
+        type: integer
+        format: int64
+      shipDate:
+        description: The date when the products allocated by this PO will be available to ship from the warehouse.  Format number of milliseconds since 01-01-1970
+        type: integer
+        format: int64
+      refreshTimestamp:
+        description: A timestamp identifying when this purchase order record was accurate.  Format number of milliseconds since 01-01-1970
+        type: integer
+        format: int64
+  ItemInventorySummary:
+    description: Item Inventory Summary
+    required:
+      - itemId
+      - productInventorySummary
+    properties:
+      itemId:
+        type: integer
+        format: int32
+      productInventorySummary:
+        type: array
+        items:
+          $ref: '#/definitions/ProductInventorySummary'
+  ProductInventorySummary:
+    description: Product Inventory Summary
+    required:
+      - productId
+      - quantity
+      - status
+      - shipDate
+    properties:
+      productId:
+        type: string
+      quantity:
+        description: Number of units available to order
+        type: integer
+        format: int32
+      status:
+        description: Current status of the products Inventory
+        type: string
+        enum:
+        - in-stock
+        - backordered
+        - out-of-stock
+      shipDate:
+        description: If inventory is backordered the date when inventory is expected to be shipped.  Format number of milliseconds since 01-01-1970
+        type: integer
+        format: int64
+  Failure:
+    description: Object structure used to convey application failure details
+    required:
+      - responseCode
+      - errors
+    properties:
+      responseCode:
+        description: Http Response Code
+        type: integer
+        format: int32
+      errors:
+        type: array
+        items:
+          $ref: '#/definitions/Error'
+  Error:
+    description: General Error Code
+    required:
+      - errorCode
+      - errorMessage
+      - errorLink
+    properties:
+      errorCode:
+        description: Error Code assigned to the specific Application Error Use-case
+        type: string
+      errorMessage:
+        description: Error Message indicating what is wrong
+        type: string
+      errorLink:
+        description: Link to online support documentation
+        type: string
+      errorDescription:
+        description: Optional information indicating why error occured and what can be done to correct it
+        type: string
+        
